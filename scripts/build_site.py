@@ -151,17 +151,12 @@ def thumb_url(url: str, size: int = 120) -> str:
     marker = "/thumb/"
     if marker not in url:
         return url
-    suffix = f"/{size}px-"
-    if suffix in url:
-        return url.replace("/1920px-", f"/{size}px-", 1).replace("/1280px-", f"/{size}px-", 1).replace("/320px-", f"/{size}px-", 1)
-    parts = url.split(marker, 1)
-    if len(parts) != 2:
+    base, rest = url.split(marker, 1)
+    path_part, size_part = rest.rsplit("/", 1)
+    if "px-" not in size_part:
         return url
-    path_and_name = parts[1]
-    if "/" not in path_and_name:
-        return url
-    directory, filename = path_and_name.rsplit("/", 1)
-    return f"{parts[0]}{marker}{directory}/{size}px-{filename}"
+    filename = size_part.split("px-", 1)[1]
+    return f"{base}{marker}{path_part}/{size}px-{filename}"
 
 
 def esc(value: str) -> str:
