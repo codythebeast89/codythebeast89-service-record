@@ -6,6 +6,7 @@ from __future__ import annotations
 import html
 import json
 import sys
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -55,13 +56,29 @@ BADGE_SECTIONS: list[dict] = [
 ]
 
 PROOF_TABS = [
-    ("Proof - Overseas Bar", "Overseas Bar Proof"),
-    ("Proof - JSA", "Joint Service Achievement Proof"),
-    ("Proof - ASD", "Army Sea Duty / Campaign Proof"),
-    ("Proof - SWA Service", "Southwest Asia Service Proof"),
-    ("Proof - Kosovo", "Kosovo Campaign Proof"),
-    ("Proof - Afghanistan", "Afghanistan Campaign Proof"),
-    ("Proof - Iraq", "Iraq Campaign Proof"),
+    ("Proof - Overseas Bar", "Overseas Bar Proof", "osb.html", "OSB"),
+    ("Proof - JSA", "Joint Service Achievement Proof", "jsa.html", "JSA"),
+    ("Proof - ASD", "Army Sea Duty / Campaign Proof", "asd.html", "Campaign"),
+    ("Proof - SWA Service", "Southwest Asia Service Proof", "swa.html", "SWA"),
+    ("Proof - Kosovo", "Kosovo Campaign Proof", "kosovo.html", "Kosovo"),
+    ("Proof - Afghanistan", "Afghanistan Campaign Proof", "afghanistan.html", "Afghanistan"),
+    ("Proof - Iraq", "Iraq Campaign Proof", "iraq.html", "Iraq"),
+]
+
+
+@dataclass(frozen=True)
+class SitePage:
+    slug: str
+    file: str
+    nav_label: str
+    section_title: str
+    header_variant: str | None = None  # None | "gold" | "charcoal"
+
+
+CORE_PAGES: list[SitePage] = [
+    SitePage("profile", "index.html", "Profile", "Profile"),
+    SitePage("decorations", "decorations.html", "Decorations", "Decorations", "gold"),
+    SitePage("events", "events.html", "Events", "Events Log"),
 ]
 
 PROFILE_FIELDS = [
@@ -325,84 +342,262 @@ def render_profile(profile: dict[str, str], photo_url: str) -> str:
     return "".join(chunks)
 
 
-def build_html(
+def site_pages() -> list[SitePage]:
+    pages = list(CORE_PAGES)
+    for _sheet, heading, file_name, nav_label in PROOF_TABS:
+        pages.append(SitePage(heading.lower().replace(" ", "-"), file_name, nav_label, heading, "charcoal"))
+    return pages
+
+
+def header_class(variant: str | None) -> str:
+    if variant == "gold":
+        return "section-header section-header--gold"
+    if variant == "charcoal":
+        return "section-header section-header--charcoal"
+    return "section-header"
+
+
+def render_nav(pages: list[SitePage], active_file: str) -> str:
+    items: list[str] = []
+    for page in pages:
+        active = " is-active" if page.file == active_file else ""
+        items.append(
+            f'<li><a href="{esc(page.file)}" class="site-nav__link{active}">{esc(page.nav_label)}</a></li>'
+        )
+    return f'<nav class="site-nav" aria-label="Sections"><ul>{"".join(items)}</ul></nav>'
+
+
+def render_page_shell(
+    *,
     config: dict,
     profile: dict[str, str],
-    ribbons: list[tuple[str, str]],
-    proof_tables: list[tuple[str, list[str], list[list[str]]]],
-    events: list[dict],
-    maps: dict,
     built_at: str,
+    pages: list[SitePage],
+    active_file: str,
+    page_title: str,
+    page_slug: str,
+    body_html: str,
 ) -> str:
     username = profile.get("Username") or config.get("username", "Service Member")
-    title = profile.get("_title") or f"{username} | Service Record File"
+    site_title = profile.get("_title") or f"{username} | Service Record File"
     tracker_url = config.get("tracker_url", "")
-
-    proof_sections = ""
-    for heading, header, body in proof_tables:
-        proof_sections += (
-            f'<section id="{esc(heading.lower().replace(" ", "-"))}">'
-            f'<div class="section-header section-header--charcoal">{esc(heading)}</div>'
-            f'<div class="section-body">{render_table(header, body)}</div></section>'
-        )
+    awards_repo = config.get("awards_tui_repo", "")
+    full_title = f"{page_title} · {site_title}" if page_title != "Profile" else site_title
 
     return f"""<!DOCTYPE html>
-<html lang=\"en\">
+<html lang="en">
 <head>
-  <meta charset=\"utf-8\">
-  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
-  <title>{esc(title)}</title>
-  <meta name=\"description\" content=\"Public service record for {esc(username)}\">
-  <link rel=\"stylesheet\" href=\"style.css\">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="view-transition" content="same-origin">
+  <title>{esc(full_title)}</title>
+  <meta name="description" content="Public service record for {esc(username)} — {esc(page_title)}">
+  <link rel="stylesheet" href="style.css">
+  <script src="nav.js" defer></script>
 </head>
 <body>
-  <header class=\"site-header\">
-    <div class=\"site-header__inner\">
-      <h1>{esc(title)}</h1>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <h1><a class="site-header__home" href="index.html">{esc(site_title)}</a></h1>
       <p>Public service record · Last built {esc(built_at)} UTC</p>
     </div>
   </header>
-  <nav class=\"site-nav\" aria-label=\"Sections\">
-    <ul>
-      <li><a href=\"#profile\">Profile</a></li>
-      <li><a href=\"#decorations\">Decorations</a></li>
-      <li><a href=\"#events-log\">Events</a></li>
-      <li><a href=\"#overseas-bar-proof\">OSB</a></li>
-      <li><a href=\"#joint-service-achievement-proof\">JSA</a></li>
-      <li><a href=\"#army-sea-duty-/-campaign-proof\">Campaign</a></li>
-      <li><a href=\"#southwest-asia-service-proof\">SWA</a></li>
-      <li><a href=\"#kosovo-campaign-proof\">Kosovo</a></li>
-      <li><a href=\"#afghanistan-campaign-proof\">Afghanistan</a></li>
-      <li><a href=\"#iraq-campaign-proof\">Iraq</a></li>
-    </ul>
-  </nav>
-  <main>
-    <section id=\"profile\">
-      <div class=\"section-header\">Profile</div>
-      <div class=\"section-body\">{render_profile(profile, config.get('service_photo_url', ''))}</div>
-    </section>
-    <section id=\"decorations\">
-      <div class=\"section-header section-header--gold\">Decorations</div>
-      <div class=\"section-body\">
-        <h2 class=\"visually-hidden\">Badges</h2>
-        {render_badge_sections(maps)}
-        <h2 style=\"margin-top:1.25rem;color:var(--maroon);\">Ribbons</h2>
-        {render_ribbons(maps, ribbons)}
-      </div>
-    </section>
-    <section id=\"events-log\">
-      <div class=\"section-header\">Events Log</div>
-      <div class=\"section-body\">{render_events(events)}</div>
-    </section>
-    {proof_sections}
+  {render_nav(pages, active_file)}
+  <main class="page-content" data-page="{esc(page_slug)}">
+    {body_html}
   </main>
-  <footer class=\"site-footer\">
-    <p>Source tracker: <a href=\"{esc(tracker_url)}\" rel=\"noopener\">Google Sheets</a>
-    · Built by <a href=\"{esc(config.get('awards_tui_repo', ''))}\" rel=\"noopener\">awards-tui</a></p>
+  <footer class="site-footer">
+    <p>Source tracker: <a href="{esc(tracker_url)}" rel="noopener">Google Sheets</a>
+    · Built by <a href="{esc(awards_repo)}" rel="noopener">awards-tui</a></p>
   </footer>
 </body>
 </html>
 """
+
+
+def render_section_block(title: str, variant: str | None, inner_html: str, section_id: str = "") -> str:
+    id_attr = f' id="{esc(section_id)}"' if section_id else ""
+    return (
+        f"<section{id_attr}>"
+        f'<div class="{header_class(variant)}">{esc(title)}</div>'
+        f'<div class="section-body">{inner_html}</div>'
+        "</section>"
+    )
+
+
+def write_nav_js(pages: list[SitePage]) -> None:
+    files = json.dumps([page.file for page in pages])
+    script = f"""(() => {{
+  const PAGES = {files};
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function currentFile() {{
+    const path = window.location.pathname;
+    return path.substring(path.lastIndexOf("/") + 1) || "index.html";
+  }}
+
+  function initEnter() {{
+    const main = document.querySelector(".page-content");
+    if (!main || reduceMotion) return;
+    const dir = sessionStorage.getItem("page-transition-dir");
+    sessionStorage.removeItem("page-transition-dir");
+    if (dir === "forward") main.classList.add("page-enter-forward");
+    else if (dir === "back") main.classList.add("page-enter-back");
+    else main.classList.add("page-enter");
+  }}
+
+  function bindNav() {{
+    document.querySelectorAll(".site-nav a.site-nav__link").forEach((link) => {{
+      link.addEventListener("click", (event) => {{
+        const href = link.getAttribute("href");
+        if (!href || href.includes("://") || href.startsWith("#")) return;
+
+        const from = currentFile();
+        const fromIdx = PAGES.indexOf(from);
+        const toIdx = PAGES.indexOf(href);
+        if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) {{
+          return;
+        }}
+
+        sessionStorage.setItem(
+          "page-transition-dir",
+          toIdx > fromIdx ? "forward" : "back"
+        );
+
+        if (reduceMotion) return;
+
+        const main = document.querySelector(".page-content");
+        if (!main) return;
+
+        event.preventDefault();
+        const exitClass = toIdx > fromIdx ? "page-exit-forward" : "page-exit-back";
+        main.classList.add(exitClass);
+        window.setTimeout(() => {{
+          window.location.href = href;
+        }}, 280);
+      }});
+    }});
+  }}
+
+  if (document.readyState === "loading") {{
+    document.addEventListener("DOMContentLoaded", () => {{
+      initEnter();
+      bindNav();
+    }});
+  }} else {{
+    initEnter();
+    bindNav();
+  }}
+}})();
+"""
+    (DOCS_DIR / "nav.js").write_text(script, encoding="utf-8")
+
+
+def build_all_pages(
+    config: dict,
+    profile: dict[str, str],
+    ribbons: list[tuple[str, str]],
+    proof_tables: list[tuple[str, str, str, list[str], list[list[str]]]],
+    events: list[dict],
+    maps: dict,
+    built_at: str,
+) -> list[Path]:
+    pages = site_pages()
+    written: list[Path] = []
+
+    profile_body = render_section_block(
+        "Profile",
+        None,
+        render_profile(profile, config.get("service_photo_url", "")),
+        "profile",
+    )
+    written.append(
+        _write_page(
+            "index.html",
+            pages,
+            config,
+            profile,
+            built_at,
+            "Profile",
+            "profile",
+            profile_body,
+        )
+    )
+
+    decorations_inner = (
+        '<h2 class="visually-hidden">Badges</h2>'
+        f"{render_badge_sections(maps)}"
+        '<h2 class="decorations-ribbons-heading">Ribbons</h2>'
+        f"{render_ribbons(maps, ribbons)}"
+    )
+    written.append(
+        _write_page(
+            "decorations.html",
+            pages,
+            config,
+            profile,
+            built_at,
+            "Decorations",
+            "decorations",
+            render_section_block("Decorations", "gold", decorations_inner, "decorations"),
+        )
+    )
+
+    written.append(
+        _write_page(
+            "events.html",
+            pages,
+            config,
+            profile,
+            built_at,
+            "Events Log",
+            "events",
+            render_section_block("Events Log", None, render_events(events), "events-log"),
+        )
+    )
+
+    for _sheet, heading, file_name, _nav, header, body in proof_tables:
+        written.append(
+            _write_page(
+                file_name,
+                pages,
+                config,
+                profile,
+                built_at,
+                heading,
+                heading.lower().replace(" ", "-"),
+                render_section_block(heading, "charcoal", render_table(header, body)),
+            )
+        )
+
+    return written
+
+
+def _write_page(
+    file_name: str,
+    pages: list[SitePage],
+    config: dict,
+    profile: dict[str, str],
+    built_at: str,
+    page_title: str,
+    page_slug: str,
+    body_html: str,
+) -> Path:
+    path = DOCS_DIR / file_name
+    path.write_text(
+        render_page_shell(
+            config=config,
+            profile=profile,
+            built_at=built_at,
+            pages=pages,
+            active_file=file_name,
+            page_title=page_title,
+            page_slug=page_slug,
+            body_html=body_html,
+        ),
+        encoding="utf-8",
+    )
+    return path
 
 
 def ensure_style_css() -> None:
@@ -422,19 +617,20 @@ def main() -> int:
     ribbons = fetch_obtained_ribbons(tok, sheet_id, token_path)
     events = fetch_events(tok, sheet_id, token_path)
 
-    proof_tables: list[tuple[str, list[str], list[list[str]]]] = []
-    for sheet_name, heading in PROOF_TABS:
+    proof_tables: list[tuple[str, str, str, str, list[str], list[list[str]]]] = []
+    for sheet_name, heading, file_name, nav_label in PROOF_TABS:
         header, body = fetch_table(tok, sheet_id, sheet_name, token_path)
-        proof_tables.append((heading, header, body))
+        proof_tables.append((sheet_name, heading, file_name, nav_label, header, body))
 
     built_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
     DOCS_DIR.mkdir(parents=True, exist_ok=True)
     ensure_style_css()
-    INDEX_PATH.write_text(
-        build_html(config, profile, ribbons, proof_tables, events, maps, built_at),
-        encoding="utf-8",
-    )
-    print(f"Wrote {INDEX_PATH}")
+    pages = site_pages()
+    write_nav_js(pages)
+    written = build_all_pages(config, profile, ribbons, proof_tables, events, maps, built_at)
+    for path in written:
+        print(f"Wrote {path}")
+    print(f"Wrote {DOCS_DIR / 'nav.js'}")
     print(f"Wrote {DOCS_DIR / 'style.css'}")
     return 0
 

@@ -5,11 +5,28 @@ Public GitHub Pages service record for **codythebeast89**, generated from the
 
 Live site: **https://codythebeast89.github.io/codythebeast89-service-record/**
 
+Each tracker section is its own page with animated transitions when navigating via the top nav.
+
+## Pages
+
+| Page | File |
+|------|------|
+| Profile (home) | `index.html` |
+| Decorations | `decorations.html` |
+| Events Log | `events.html` |
+| Overseas Bar proof | `osb.html` |
+| JSA proof | `jsa.html` |
+| Army Sea Duty / Campaign | `asd.html` |
+| Southwest Asia Service | `swa.html` |
+| Kosovo Campaign | `kosovo.html` |
+| Afghanistan Campaign | `afghanistan.html` |
+| Iraq Campaign | `iraq.html` |
+
 ## Contents
 
 - **Profile** — username, Roblox ID, Discord ID, rank, unit, and service details
 - **Decorations** — badges (hardcoded layout) and obtained ribbons from the tracker
-- **Proof tabs** — Overseas Bar, JSA, Campaign (Army Sea Duty), SWA, Kosovo
+- **Proof tabs** — one HTML page per proof tab (OSB, JSA, ASD, SWA, Kosovo, Afghanistan, Iraq)
 - **Events Log** — AFA and unit events
 
 ## Local build
@@ -22,7 +39,7 @@ Requires Python 3.10+ and a valid Google Sheets OAuth token from
 python3 scripts/build_site.py
 ```
 
-Output is written to `docs/index.html` and `docs/style.css`.
+Output is written to `docs/` — one HTML file per section plus shared `style.css` and `nav.js`.
 
 ## GitHub Actions / Pages setup
 
