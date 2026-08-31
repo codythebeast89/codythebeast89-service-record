@@ -57,7 +57,7 @@ BADGE_SECTIONS: list[dict] = [
 PROOF_TABS = [
     ("Proof - Overseas Bar", "Overseas Bar Proof"),
     ("Proof - JSA", "Joint Service Achievement Proof"),
-    ("Proof - Campaign", "Army Sea Duty / Campaign Proof"),
+    ("Proof - ASD", "Army Sea Duty / Campaign Proof"),
     ("Proof - SWA Service", "Southwest Asia Service Proof"),
     ("Proof - Kosovo", "Kosovo Campaign Proof"),
 ]
