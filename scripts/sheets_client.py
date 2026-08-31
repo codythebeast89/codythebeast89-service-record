@@ -109,6 +109,44 @@ def get_values(
     return result.get("values") or []
 
 
+def get_grid_cells(
+    tok: dict,
+    spreadsheet_id: str,
+    sheet: str,
+    a1_range: str,
+    *,
+    persist_path: Path | None = None,
+) -> list[list[dict | None]]:
+    """Return raw cell metadata for a range (includes chipRuns hyperlinks)."""
+    encoded_range = urllib.parse.quote(f"'{sheet}'!{a1_range}", safe="")
+    fields = urllib.parse.quote(
+        "sheets(data(rowData(values(formattedValue,hyperlink,userEnteredValue,chipRuns))))",
+        safe="",
+    )
+    path = f"?includeGridData=true&ranges={encoded_range}&fields={fields}"
+    result = api(tok, spreadsheet_id, path, persist_path=persist_path)
+    sheets = result.get("sheets") or []
+    if not sheets:
+        return []
+    data = sheets[0].get("data") or []
+    if not data:
+        return []
+    row_data = data[0].get("rowData") or []
+    rows: list[list[dict | None]] = []
+    max_cols = 0
+    for row in row_data:
+        values = row.get("values") or []
+        max_cols = max(max_cols, len(values))
+        rows.append(values)
+    normalized: list[list[dict | None]] = []
+    for values in rows:
+        row: list[dict | None] = []
+        for idx in range(max_cols):
+            row.append(values[idx] if idx < len(values) else None)
+        normalized.append(row)
+    return normalized
+
+
 def list_sheet_titles(
     tok: dict,
     spreadsheet_id: str,

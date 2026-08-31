@@ -14,7 +14,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from sheets_client import get_values, load_token, resolve_token_path  # noqa: E402
+from sheets_client import get_grid_cells, get_values, load_token, resolve_token_path  # noqa: E402
 
 CONFIG_PATH = ROOT / "config.json"
 IMAGE_MAP_PATH = ROOT / "data" / "image-map.json"
@@ -326,6 +326,53 @@ def cell(row: list[str], index: int, default: str = "") -> str:
     return default
 
 
+def parse_hyperlink_formula(formula: str) -> tuple[str, str] | None:
+    if not formula.upper().startswith("=HYPERLINK("):
+        return None
+    match = re.match(
+        r'=HYPERLINK\("((?:[^"]|"")*)","((?:[^"]|"")*)"\)',
+        formula,
+        re.IGNORECASE,
+    )
+    if not match:
+        return None
+    url = match.group(1).replace('""', '"')
+    label = match.group(2).replace('""', '"')
+    return url, label
+
+
+def table_cell_from_grid(cell_data: dict | None) -> tuple[str, str | None]:
+    if not cell_data:
+        return "", None
+
+    text = (
+        cell_data.get("formattedValue")
+        or cell_data.get("userEnteredValue", {}).get("stringValue")
+        or ""
+    ).strip()
+    url = cell_data.get("hyperlink")
+
+    chip_runs = cell_data.get("chipRuns") or []
+    if chip_runs:
+        try:
+            url = chip_runs[0]["chip"]["richLinkProperties"]["uri"]
+        except (KeyError, IndexError, TypeError):
+            pass
+
+    if not url:
+        formula = cell_data.get("userEnteredValue", {}).get("formulaValue", "")
+        parsed = parse_hyperlink_formula(formula)
+        if parsed:
+            url, label = parsed
+            if not text:
+                text = label
+
+    if not url and text.startswith(("http://", "https://")):
+        url = text
+
+    return text, url
+
+
 def fetch_profile(tok: dict, sheet_id: str, token_path: Path) -> dict[str, str]:
     rows = get_values(tok, sheet_id, "Profile", "G7:J20", persist_path=token_path)
     profile: dict[str, str] = {}
@@ -354,17 +401,29 @@ def fetch_obtained_ribbons(tok: dict, sheet_id: str, token_path: Path) -> list[t
     return obtained
 
 
-def fetch_table(tok: dict, sheet_id: str, sheet: str, token_path: Path) -> tuple[list[str], list[list[str]]]:
-    rows = get_values(tok, sheet_id, sheet, "A1:Z500", persist_path=token_path)
-    if not rows:
+def fetch_table(
+    tok: dict, sheet_id: str, sheet: str, token_path: Path
+) -> tuple[list[str], list[list[tuple[str, str | None]]]]:
+    grid_rows = get_grid_cells(tok, sheet_id, sheet, "A1:Z500", persist_path=token_path)
+    if not grid_rows:
         return [], []
-    header = [cell(rows[0], i) for i, _ in enumerate(rows[0])]
+
+    header: list[str] = []
+    for cell_data in grid_rows[0]:
+        text, _ = table_cell_from_grid(cell_data)
+        header.append(text)
     while header and not header[-1]:
         header.pop()
-    body: list[list[str]] = []
-    for row in rows[1:]:
-        cells = [cell(row, i) for i in range(len(header))]
-        if any(cells):
+    if not header:
+        return [], []
+
+    body: list[list[tuple[str, str | None]]] = []
+    for grid_row in grid_rows[1:]:
+        cells = [
+            table_cell_from_grid(grid_row[idx] if idx < len(grid_row) else None)
+            for idx in range(len(header))
+        ]
+        if any(text for text, _ in cells):
             body.append(cells)
     return header, body
 
@@ -412,22 +471,34 @@ def status_class(status: str) -> str:
     return ""
 
 
-def render_table(header: list[str], body: list[list[str]]) -> str:
+def render_table_cell(value: str, url: str | None, column: str) -> str:
+    if url and value:
+        inner = (
+            f'<a class="proof-doc-link" href="{esc(url)}" target="_blank" '
+            f'rel="noopener noreferrer" title="Open proof document">{esc(value)}</a>'
+        )
+    else:
+        inner = esc(value)
+
+    if column.lower() == "status":
+        cls = status_class(value)
+        if cls:
+            return f'<td class="{cls}">{inner}</td>'
+    return f"<td>{inner}</td>"
+
+
+def render_table(header: list[str], body: list[list[tuple[str, str | None]]]) -> str:
     if not header:
         return '<p class="meta-note">No data available.</p>'
-    chunks = ['<div class="table-wrap"><table><thead><tr>']
+    chunks = ['<div class="table-wrap"><table class="proof-table"><thead><tr>']
     for col in header:
         chunks.append(f"<th>{esc(col)}</th>")
     chunks.append("</tr></thead><tbody>")
     for row in body:
         chunks.append("<tr>")
-        for idx, col in enumerate(header):
-            value = cell(row, idx)
-            if header[idx].lower() == "status":
-                cls = status_class(value)
-                chunks.append(f'<td class="{cls}">{esc(value)}</td>' if cls else f"<td>{esc(value)}</td>")
-            else:
-                chunks.append(f"<td>{esc(value)}</td>")
+        for idx, column in enumerate(header):
+            value, url = row[idx] if idx < len(row) else ("", None)
+            chunks.append(render_table_cell(value, url, column))
         chunks.append("</tr>")
     chunks.append("</tbody></table></div>")
     return "".join(chunks)
@@ -669,7 +740,7 @@ def build_all_pages(
     config: dict,
     profile: dict[str, str],
     ribbons: list[tuple[str, str]],
-    proof_tables: list[tuple[str, str, str, list[str], list[list[str]]]],
+    proof_tables: list[tuple[str, str, str, list[str], list[list[tuple[str, str | None]]]]],
     maps: dict,
     built_at: str,
 ) -> list[Path]:
@@ -774,7 +845,7 @@ def main() -> int:
     profile = fetch_profile(tok, sheet_id, token_path)
     ribbons = fetch_obtained_ribbons(tok, sheet_id, token_path)
 
-    proof_tables: list[tuple[str, str, str, str, list[str], list[list[str]]]] = []
+    proof_tables: list[tuple[str, str, str, str, list[str], list[list[tuple[str, str | None]]]]] = []
     for sheet_name, heading, file_name, nav_label in PROOF_TABS:
         header, body = fetch_table(tok, sheet_id, sheet_name, token_path)
         proof_tables.append((sheet_name, heading, file_name, nav_label, header, body))

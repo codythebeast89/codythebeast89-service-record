@@ -493,6 +493,14 @@ tbody td {
 }
 tbody tr:nth-child(even) { background: #f7f5f0; }
 tbody tr:hover { background: rgba(201, 162, 39, 0.1); }
+.proof-doc-link {
+  color: var(--od-green-dark);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.proof-doc-link:hover { color: var(--maroon); }
+.proof-table td:has(.proof-doc-link) { max-width: 28rem; }
 .status-logged { color: #2e5a1c; font-weight: 700; }
 .status-pending { color: var(--gold); font-weight: 700; }
 .events-block { margin-bottom: 1rem; }
