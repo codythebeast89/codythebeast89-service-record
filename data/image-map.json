@@ -1,4 +1,13 @@
 {
+  "overlays": {
+    "bronze_olc": "https://upload.wikimedia.org/wikipedia/commons/8/8e/Oak_leaf_cluster%2C_bronze.svg",
+    "valor_v": "https://upload.wikimedia.org/wikipedia/commons/a/a0/%22V%22_device%2C_brass.svg",
+    "service_star": "https://upload.wikimedia.org/wikipedia/commons/d/d6/Bronze-service-star-3d-vector.svg"
+  },
+  "variants": {
+    "master combat action badge|3rd award": "https://upload.wikimedia.org/wikipedia/commons/b/b9/Master_Combat_Action_Badge_3x_Award.png",
+    "army good conduct|x2": "https://upload.wikimedia.org/wikipedia/commons/d/d5/United_States_Army_Good_Conduct_Medal_ribbon%2C_2nd_award.svg"
+  },
   "badges": {
     "combat infantryman badge": "https://upload.wikimedia.org/wikipedia/commons/8/82/Combat_Infantry_Badge.svg",
     "combat medical badge": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Combat_Medical_Badge%2C_1st_award.svg/1280px-Combat_Medical_Badge%2C_1st_award.svg.png",

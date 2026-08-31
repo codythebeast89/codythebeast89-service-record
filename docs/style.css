@@ -274,6 +274,42 @@ section {
   max-height: 52px;
   object-fit: contain;
 }
+.award-card__media--rack {
+  position: relative;
+  overflow: visible;
+}
+.award-card__ribbon {
+  display: block;
+  width: 52px;
+  height: 52px;
+  max-width: 52px;
+  max-height: 52px;
+  object-fit: contain;
+}
+.award-card__devices {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.award-device {
+  position: absolute;
+  object-fit: contain;
+}
+.award-device--valor {
+  left: 50%;
+  top: 54%;
+  transform: translate(-50%, -50%);
+  width: 13px;
+  height: auto;
+  z-index: 2;
+}
+.award-device--olc {
+  top: 18%;
+  width: 11px;
+  height: auto;
+  right: calc(6px + var(--olc-index) * 10px);
+  z-index: 2;
+}
 .award-card__media--empty {
   background: linear-gradient(135deg, #f3f3f3 0%, #e8e8e8 100%);
 }

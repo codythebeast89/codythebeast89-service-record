@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import html
 import json
+import re
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -104,9 +105,54 @@ def load_config() -> dict:
 
 def load_image_map() -> dict:
     if not IMAGE_MAP_PATH.is_file():
-        return {"badges": {}, "ribbons": {}, "foreign": {}}
+        return {"badges": {}, "ribbons": {}, "foreign": {}, "overlays": {}, "variants": {}}
     with IMAGE_MAP_PATH.open(encoding="utf-8") as handle:
         return json.load(handle)
+
+
+@dataclass(frozen=True)
+class ParsedDevice:
+    valor: bool = False
+    award_num: int = 1
+    bronze_olcs: int = 0
+
+
+def parse_device(device: str) -> ParsedDevice:
+    if not device or device.strip() in {"-", "N/A", "n/a"}:
+        return ParsedDevice()
+
+    raw = device.strip()
+    lowered = raw.lower()
+    valor = bool(re.search(r'"c"|with c\b|valor', lowered))
+
+    award_num = 1
+    if match := re.search(r"(\d+)(?:st|nd|rd|th)\s+award", lowered):
+        award_num = int(match.group(1))
+    elif match := re.search(r"x\s*(\d+)", lowered):
+        award_num = int(match.group(1))
+
+    bronze_olcs = max(0, award_num - 1)
+    return ParsedDevice(valor=valor, award_num=award_num, bronze_olcs=bronze_olcs)
+
+
+def device_variant_key(name: str, device: str, parsed: ParsedDevice) -> list[str]:
+    base = norm_key(name)
+    keys = [
+        f"{base}|{norm_key(device)}",
+        f"{base}|x{parsed.award_num}",
+        f"{base}|{parsed.award_num}rd award" if parsed.award_num == 3 else "",
+        f"{base}|{parsed.award_num}nd award" if parsed.award_num == 2 else "",
+        f"{base}|{parsed.award_num}st award" if parsed.award_num == 1 else "",
+    ]
+    return [key for key in keys if key]
+
+
+def lookup_variant(maps: dict, name: str, device: str, parsed: ParsedDevice) -> str | None:
+    variants = maps.get("variants", {})
+    for key in device_variant_key(name, device, parsed):
+        if key in variants:
+            return variants[key]
+    return None
 
 
 def norm_key(value: str) -> str:
@@ -135,15 +181,52 @@ def lookup_image(maps: dict, category: str, name: str) -> str | None:
     return None
 
 
-def render_award_media(url: str | None, label: str) -> str:
-    if url:
-        display_url = thumb_url(url)
+def render_award_media(name: str, device: str, category: str, maps: dict) -> str:
+    parsed = parse_device(device)
+    variant = lookup_variant(maps, name, device, parsed)
+    if variant:
+        display_url = thumb_url(variant, size=120 if category == "ribbons" else 120)
         return (
             f'<div class="award-card__media">'
-            f'<img src="{esc(display_url)}" alt="{esc(label)}" loading="lazy" width="52" height="52">'
+            f'<img src="{esc(display_url)}" alt="{esc(name)}" loading="lazy" width="52" height="52">'
             f"</div>"
         )
-    return '<div class="award-card__media award-card__media--empty" aria-hidden="true"></div>'
+
+    base = lookup_image(maps, category, name)
+    if not base:
+        return '<div class="award-card__media award-card__media--empty" aria-hidden="true"></div>'
+
+    if parsed.bronze_olcs == 0 and not parsed.valor:
+        display_url = thumb_url(base)
+        return (
+            f'<div class="award-card__media">'
+            f'<img src="{esc(display_url)}" alt="{esc(name)}" loading="lazy" width="52" height="52">'
+            f"</div>"
+        )
+
+    overlays = maps.get("overlays", {})
+    olc_url = overlays.get("bronze_olc", "")
+    valor_url = overlays.get("valor_v", "")
+    device_parts: list[str] = []
+    if parsed.valor and valor_url:
+        device_parts.append(
+            f'<img class="award-device award-device--valor" src="{esc(thumb_url(valor_url, 32))}" alt="">'
+        )
+    if parsed.bronze_olcs and olc_url:
+        olc_display = esc(thumb_url(olc_url, 32))
+        for index in range(parsed.bronze_olcs):
+            device_parts.append(
+                f'<img class="award-device award-device--olc" src="{olc_display}" alt="" '
+                f'style="--olc-index:{index}">'
+            )
+
+    return (
+        f'<div class="award-card__media award-card__media--rack">'
+        f'<img class="award-card__ribbon" src="{esc(thumb_url(base))}" alt="{esc(name)}" '
+        f'loading="lazy" width="52" height="52">'
+        f'<div class="award-card__devices" aria-hidden="true">{"".join(device_parts)}</div>'
+        f"</div>"
+    )
 
 
 def thumb_url(url: str, size: int = 120) -> str:
@@ -281,8 +364,7 @@ def render_badge_sections(maps: dict) -> str:
             name = item["name"]
             device = item["device"]
             category = "foreign" if "medal" in name.lower() else "badges"
-            img = lookup_image(maps, category, name) or lookup_image(maps, "badges", name)
-            media = render_award_media(img, name)
+            media = render_award_media(name, device, category, maps)
             device_html = f'<div class="badge-card__device">{esc(device)}</div>' if device and device != "-" else ""
             chunks.append(
                 "<li class=\"badge-card\">"
@@ -297,8 +379,7 @@ def render_badge_sections(maps: dict) -> str:
 def render_ribbons(maps: dict, ribbons: list[tuple[str, str]]) -> str:
     chunks = [f'<p class="ribbon-count">{len(ribbons)} Ribbons Obtained</p><div class="ribbon-grid">']
     for name, device in ribbons:
-        img = lookup_image(maps, "ribbons", name)
-        media = render_award_media(img, name)
+        media = render_award_media(name, device, "ribbons", maps)
         device_html = f'<div class="ribbon-card__device">{esc(device)}</div>' if device else ""
         chunks.append(
             '<div class="ribbon-card">'
