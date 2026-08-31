@@ -184,33 +184,47 @@ section {
 .section-header--gold { background: var(--gold); color: #1a1a1a; }
 .section-header--charcoal { background: var(--charcoal); }
 .section-body { padding: 1rem; }
-.profile-grid {
+.profile-layout {
   display: grid;
-  grid-template-columns: 140px 1fr;
-  gap: 0.5rem 1rem;
+  grid-template-columns: minmax(140px, 180px) 1fr;
+  gap: 1.25rem 2rem;
   align-items: start;
 }
+.profile-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.85rem 1.5rem;
+  margin: 0;
+}
+.profile-field {
+  display: grid;
+  gap: 0.15rem;
+}
 .profile-photo {
-  grid-column: 1 / -1;
   display: flex;
   justify-content: center;
-  margin-bottom: 0.5rem;
 }
 .profile-photo img {
-  width: min(180px, 60vw);
+  width: min(180px, 100%);
   height: auto;
   border-radius: var(--radius);
   border: 3px solid var(--maroon);
   box-shadow: var(--card-shadow);
 }
-.profile-grid dt {
+.profile-field dt,
+.profile-fields dt {
+  margin: 0;
   font-weight: 700;
   color: var(--muted);
   font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
-.profile-grid dd { margin: 0; font-weight: 600; }
+.profile-field dd,
+.profile-fields dd {
+  margin: 0;
+  font-weight: 600;
+}
 .badge-groups { display: grid; gap: 1rem; }
 .badge-group h3 {
   margin: 0 0 0.5rem;
@@ -221,7 +235,7 @@ section {
 }
 .badge-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
   gap: 0.75rem;
   list-style: none;
   margin: 0;
@@ -231,22 +245,42 @@ section {
   display: flex;
   gap: 0.75rem;
   align-items: center;
+  min-height: 72px;
   padding: 0.65rem;
   border: 1px solid var(--gray-border);
   border-radius: var(--radius);
   background: #fafafa;
 }
-.badge-card img, .ribbon-card img {
+.award-card__media {
   width: 52px;
   height: 52px;
-  object-fit: contain;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border: 1px solid var(--gray-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.award-card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.award-card__media--empty {
+  background: linear-gradient(135deg, #f3f3f3 0%, #e8e8e8 100%);
+}
+.badge-card__body,
+.ribbon-card__body {
+  min-width: 0;
+  flex: 1;
 }
 .badge-card__name, .ribbon-card__name { font-weight: 700; font-size: 0.92rem; }
 .badge-card__device, .ribbon-card__device { color: var(--muted); font-size: 0.82rem; }
 .ribbon-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
   gap: 0.75rem;
 }
 .ribbon-count { margin: 0 0 0.75rem; font-weight: 700; color: var(--maroon); }
@@ -291,16 +325,8 @@ tbody tr:hover { background: #fff3e0; }
   white-space: nowrap;
   border: 0;
 }
-@media (min-width: 640px) {
-  .profile-grid { grid-template-columns: 180px 1fr 1fr; }
-  .profile-photo {
-    grid-column: 1;
-    grid-row: 1 / span 6;
-    justify-content: flex-start;
-    margin-bottom: 0;
-  }
-}
-@media (max-width: 480px) {
-  .profile-grid { grid-template-columns: 1fr; }
-  .profile-grid dt { margin-top: 0.35rem; }
+@media (max-width: 640px) {
+  .profile-layout { grid-template-columns: 1fr; }
+  .profile-photo { justify-content: center; margin-bottom: 0.25rem; }
+  .profile-fields { grid-template-columns: 1fr; }
 }

@@ -113,15 +113,36 @@ def norm_key(value: str) -> str:
     return " ".join(value.lower().replace("_", " ").split())
 
 
+IMAGE_ALIASES: dict[str, str] = {
+    "antartica service": "antarctica service",
+    "afghanistan campagin": "afghanistan campaign",
+}
+
+
 def lookup_image(maps: dict, category: str, name: str) -> str | None:
-    bucket = maps.get(category, {})
-    key = norm_key(name)
-    if key in bucket:
-        return bucket[key]
-    for map_key, url in bucket.items():
-        if key in map_key or map_key in key:
-            return url
+    key = IMAGE_ALIASES.get(norm_key(name), norm_key(name))
+    search_order: list[str] = []
+    for cat in (category, "ribbons", "badges", "foreign"):
+        if cat not in search_order:
+            search_order.append(cat)
+    for cat in search_order:
+        bucket = maps.get(cat, {})
+        if key in bucket:
+            return bucket[key]
+        for map_key, url in bucket.items():
+            if key in map_key or map_key in key:
+                return url
     return None
+
+
+def render_award_media(url: str | None, label: str) -> str:
+    if url:
+        return (
+            f'<div class="award-card__media">'
+            f'<img src="{esc(url)}" alt="{esc(label)}" loading="lazy">'
+            f"</div>"
+        )
+    return '<div class="award-card__media award-card__media--empty" aria-hidden="true"></div>'
 
 
 def esc(value: str) -> str:
@@ -245,11 +266,11 @@ def render_badge_sections(maps: dict) -> str:
             device = item["device"]
             category = "foreign" if "medal" in name.lower() else "badges"
             img = lookup_image(maps, category, name) or lookup_image(maps, "badges", name)
-            img_tag = f'<img src="{esc(img)}" alt="" loading="lazy">' if img else ""
+            media = render_award_media(img, name)
             device_html = f'<div class="badge-card__device">{esc(device)}</div>' if device and device != "-" else ""
             chunks.append(
                 "<li class=\"badge-card\">"
-                f"{img_tag}<div><div class=\"badge-card__name\">{esc(name)}</div>{device_html}</div>"
+                f"{media}<div class=\"badge-card__body\"><div class=\"badge-card__name\">{esc(name)}</div>{device_html}</div>"
                 "</li>"
             )
         chunks.append("</ul></div>")
@@ -261,11 +282,11 @@ def render_ribbons(maps: dict, ribbons: list[tuple[str, str]]) -> str:
     chunks = [f'<p class="ribbon-count">{len(ribbons)} Ribbons Obtained</p><div class="ribbon-grid">']
     for name, device in ribbons:
         img = lookup_image(maps, "ribbons", name)
-        img_tag = f'<img src="{esc(img)}" alt="" loading="lazy">' if img else ""
+        media = render_award_media(img, name)
         device_html = f'<div class="ribbon-card__device">{esc(device)}</div>' if device else ""
         chunks.append(
             '<div class="ribbon-card">'
-            f"{img_tag}<div><div class=\"ribbon-card__name\">{esc(name)}</div>{device_html}</div>"
+            f"{media}<div class=\"ribbon-card__body\"><div class=\"ribbon-card__name\">{esc(name)}</div>{device_html}</div>"
             "</div>"
         )
     chunks.append("</div>")
@@ -328,18 +349,21 @@ def render_events(blocks: list[dict]) -> str:
 
 def render_profile(profile: dict[str, str], photo_url: str) -> str:
     title = profile.get("_title") or f"{profile.get('Username', 'Service Record')} | Service Record File"
-    chunks = [
-        f'<dl class="profile-grid">',
-        f'<div class="profile-photo"><img src="{esc(photo_url)}" alt="Service photo"></div>',
-    ]
+    fields: list[str] = []
     for field in PROFILE_FIELDS:
         value = profile.get(field, "")
         if not value:
             continue
-        chunks.append(f"<dt>{esc(field)}</dt><dd>{esc(value)}</dd>")
-    chunks.append("</dl>")
-    chunks.append(f'<p class="meta-note">Generated from tracker data. Title: {esc(title)}</p>')
-    return "".join(chunks)
+        fields.append(
+            f'<div class="profile-field"><dt>{esc(field)}</dt><dd>{esc(value)}</dd></div>'
+        )
+    return (
+        f'<div class="profile-layout">'
+        f'<div class="profile-photo"><img src="{esc(photo_url)}" alt="Service photo"></div>'
+        f'<dl class="profile-fields">{"".join(fields)}</dl>'
+        f"</div>"
+        f'<p class="meta-note">Generated from tracker data. Title: {esc(title)}</p>'
+    )
 
 
 def site_pages() -> list[SitePage]:
