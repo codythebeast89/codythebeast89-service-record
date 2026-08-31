@@ -41,7 +41,15 @@ jobs:
           echo "AWARDS_TOKEN_PATH=$AWARDS_TOKEN_PATH" >> "$GITHUB_ENV"
 
       - name: Build site
-        run: python3 scripts/build_site.py
+        run: |
+          for attempt in 1 2 3; do
+            if python3 scripts/build_site.py; then
+              exit 0
+            fi
+            echo "Build attempt ${attempt} failed; retrying..." >&2
+            sleep $((attempt * 5))
+          done
+          exit 1
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

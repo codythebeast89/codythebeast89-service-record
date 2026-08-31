@@ -99,6 +99,10 @@ def api(
                 break
             time.sleep(min(2 ** attempt, 8))
         except urllib.error.HTTPError as exc:
+            if exc.code in (429, 500, 502, 503, 504) and attempt + 1 < retries:
+                last_error = exc
+                time.sleep(min(2 ** attempt, 8))
+                continue
             detail = exc.read().decode("utf-8", errors="replace")
             raise RuntimeError(f"Sheets API {exc.code}: {detail}") from exc
 
