@@ -60,6 +60,7 @@ PROOF_TABS = [
     ("Proof - ASD", "Army Sea Duty / Campaign Proof"),
     ("Proof - SWA Service", "Southwest Asia Service Proof"),
     ("Proof - Kosovo", "Kosovo Campaign Proof"),
+    ("Proof - Afghanistan", "Afghanistan Campaign Proof"),
 ]
 
 PROFILE_FIELDS = [
@@ -370,6 +371,7 @@ def build_html(
       <li><a href=\"#army-sea-duty-/-campaign-proof\">Campaign</a></li>
       <li><a href=\"#southwest-asia-service-proof\">SWA</a></li>
       <li><a href=\"#kosovo-campaign-proof\">Kosovo</a></li>
+      <li><a href=\"#afghanistan-campaign-proof\">Afghanistan</a></li>
     </ul>
   </nav>
   <main>
