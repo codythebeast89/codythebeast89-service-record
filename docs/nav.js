@@ -1,5 +1,5 @@
 (() => {
-  const PAGES = ["index.html", "decorations.html", "events.html", "osb.html", "jsa.html", "asd.html", "swa.html", "kosovo.html", "afghanistan.html", "iraq.html"];
+  const PAGES = ["index.html", "decorations.html", "osb.html", "jsa.html", "asd.html", "swa.html", "kosovo.html", "afghanistan.html", "iraq.html"];
   const TRANSITION_MS = 780;
   const TRANSITION_KEY = "page-transition-active";
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;

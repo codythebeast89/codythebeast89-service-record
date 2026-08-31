@@ -79,7 +79,6 @@ class SitePage:
 CORE_PAGES: list[SitePage] = [
     SitePage("profile", "index.html", "Profile", "Profile"),
     SitePage("decorations", "decorations.html", "Decorations", "Decorations", "gold"),
-    SitePage("events", "events.html", "Events", "Events Log"),
 ]
 
 PROFILE_FIELDS = [
@@ -370,65 +369,6 @@ def fetch_table(tok: dict, sheet_id: str, sheet: str, token_path: Path) -> tuple
     return header, body
 
 
-def fetch_events(tok: dict, sheet_id: str, token_path: Path) -> list[dict]:
-    """Parse Events Log tab with side-by-side sections (AFA / Expeditions / Courses)."""
-    rows = get_values(tok, sheet_id, "Events Log", "A1:Z200", persist_path=token_path)
-    if not rows:
-        return []
-
-    title_idx: int | None = None
-    for idx in range(len(rows) - 1):
-        header_row = rows[idx + 1]
-        if not any(cell(header_row, col) == "Date" for col in range(2, len(header_row))):
-            continue
-        title_row = rows[idx]
-        titles = [
-            (col, cell(title_row, col))
-            for col in range(2, len(title_row))
-            if cell(title_row, col) and cell(title_row, col) != "Events"
-        ]
-        if titles:
-            title_idx = idx
-            break
-
-    if title_idx is None:
-        return []
-
-    title_row = rows[title_idx]
-    header_row = rows[title_idx + 1]
-    starts = [
-        (col, cell(title_row, col))
-        for col in range(2, len(title_row))
-        if cell(title_row, col) and cell(title_row, col) != "Events"
-    ]
-
-    blocks: list[dict] = []
-    for block_index, (start_col, title) in enumerate(starts):
-        end_col = starts[block_index + 1][0] if block_index + 1 < len(starts) else max(len(header_row), 26)
-        header_cols = [
-            (cell(header_row, col), col)
-            for col in range(start_col, end_col)
-            if cell(header_row, col)
-        ]
-        if not header_cols:
-            continue
-
-        data_rows: list[list[str]] = []
-        for row in rows[title_idx + 2 :]:
-            values = [cell(row, col) for _, col in header_cols]
-            if any(values):
-                data_rows.append(values)
-
-        blocks.append(
-            {
-                "title": title,
-                "headers": [header for header, _ in header_cols],
-                "rows": data_rows,
-            }
-        )
-    return blocks
-
-
 def render_badge_sections(maps: dict) -> str:
     chunks: list[str] = ['<div class="badge-groups">']
     for section in BADGE_SECTIONS:
@@ -490,30 +430,6 @@ def render_table(header: list[str], body: list[list[str]]) -> str:
                 chunks.append(f"<td>{esc(value)}</td>")
         chunks.append("</tr>")
     chunks.append("</tbody></table></div>")
-    return "".join(chunks)
-
-
-def render_events(blocks: list[dict]) -> str:
-    if not blocks:
-        return '<p class="meta-note">No events logged yet.</p>'
-    chunks: list[str] = []
-    for block in blocks:
-        rows = block.get("rows", [])
-        chunks.append(f'<div class="events-block"><h3>{esc(block["title"])}</h3>')
-        if not rows:
-            chunks.append('<p class="meta-note">No entries yet.</p></div>')
-            continue
-        headers = block.get("headers") or ["Date", "Event"]
-        chunks.append('<div class="table-wrap"><table><thead><tr>')
-        for h in headers:
-            chunks.append(f"<th>{esc(h)}</th>")
-        chunks.append("</tr></thead><tbody>")
-        for row in rows:
-            chunks.append("<tr>")
-            for idx in range(len(headers)):
-                chunks.append(f"<td>{esc(cell(row, idx))}</td>")
-            chunks.append("</tr>")
-        chunks.append("</tbody></table></div></div>")
     return "".join(chunks)
 
 
@@ -754,7 +670,6 @@ def build_all_pages(
     profile: dict[str, str],
     ribbons: list[tuple[str, str]],
     proof_tables: list[tuple[str, str, str, list[str], list[list[str]]]],
-    events: list[dict],
     maps: dict,
     built_at: str,
 ) -> list[Path]:
@@ -796,19 +711,6 @@ def build_all_pages(
             "Decorations",
             "decorations",
             render_section_block("Decorations", "gold", decorations_inner, "decorations"),
-        )
-    )
-
-    written.append(
-        _write_page(
-            "events.html",
-            pages,
-            config,
-            profile,
-            built_at,
-            "Events Log",
-            "events",
-            render_section_block("Events Log", None, render_events(events), "events-log"),
         )
     )
 
@@ -871,7 +773,6 @@ def main() -> int:
 
     profile = fetch_profile(tok, sheet_id, token_path)
     ribbons = fetch_obtained_ribbons(tok, sheet_id, token_path)
-    events = fetch_events(tok, sheet_id, token_path)
 
     proof_tables: list[tuple[str, str, str, str, list[str], list[list[str]]]] = []
     for sheet_name, heading, file_name, nav_label in PROOF_TABS:
@@ -883,7 +784,11 @@ def main() -> int:
     ensure_style_css()
     pages = site_pages()
     write_nav_js(pages)
-    written = build_all_pages(config, profile, ribbons, proof_tables, events, maps, built_at)
+    written = build_all_pages(config, profile, ribbons, proof_tables, maps, built_at)
+    stale_events = DOCS_DIR / "events.html"
+    if stale_events.is_file():
+        stale_events.unlink()
+        print(f"Removed {stale_events}")
     for path in written:
         print(f"Wrote {path}")
     print(f"Wrote {DOCS_DIR / 'nav.js'}")

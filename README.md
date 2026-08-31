@@ -13,7 +13,6 @@ Each tracker section is its own page with animated transitions when navigating v
 |------|------|
 | Profile (home) | `index.html` |
 | Decorations | `decorations.html` |
-| Events Log | `events.html` |
 | Overseas Bar proof | `osb.html` |
 | JSA proof | `jsa.html` |
 | Army Sea Duty / Campaign | `asd.html` |
@@ -27,7 +26,6 @@ Each tracker section is its own page with animated transitions when navigating v
 - **Profile** — username, Roblox ID, Discord ID, rank, unit, and service details
 - **Decorations** — badges (hardcoded layout) and obtained ribbons from the tracker
 - **Proof tabs** — one HTML page per proof tab (OSB, JSA, ASD, SWA, Kosovo, Afghanistan, Iraq)
-- **Events Log** — AFA and unit events
 
 ## Local build
 
