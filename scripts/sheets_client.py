@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -73,25 +74,37 @@ def api(
     method: str = "GET",
     body: dict | None = None,
     persist_path: Path | None = None,
+    retries: int = 4,
 ) -> dict:
-    tok = refresh_token(tok, persist_path=persist_path)
-    url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}{path}"
-    payload = json.dumps(body).encode() if body is not None else None
-    req = urllib.request.Request(
-        url,
-        data=payload,
-        method=method,
-        headers={
-            "Authorization": f"Bearer {tok['token']}",
-            "Content-Type": "application/json",
-        },
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=120) as resp:
-            return json.load(resp)
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"Sheets API {exc.code}: {detail}") from exc
+    last_error: Exception | None = None
+    for attempt in range(retries):
+        tok = refresh_token(tok, persist_path=persist_path)
+        url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}{path}"
+        payload = json.dumps(body).encode() if body is not None else None
+        req = urllib.request.Request(
+            url,
+            data=payload,
+            method=method,
+            headers={
+                "Authorization": f"Bearer {tok['token']}",
+                "Content-Type": "application/json",
+            },
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                return json.load(resp)
+        except (urllib.error.URLError, TimeoutError, ConnectionResetError) as exc:
+            last_error = exc
+            if attempt + 1 >= retries:
+                break
+            time.sleep(min(2 ** attempt, 8))
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", errors="replace")
+            raise RuntimeError(f"Sheets API {exc.code}: {detail}") from exc
+
+    if last_error is not None:
+        raise RuntimeError(f"Sheets API request failed after {retries} attempts: {last_error}") from last_error
+    raise RuntimeError("Sheets API request failed")
 
 
 def get_values(

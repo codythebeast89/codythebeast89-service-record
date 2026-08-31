@@ -494,12 +494,21 @@ tbody td {
 tbody tr:nth-child(even) { background: #f7f5f0; }
 tbody tr:hover { background: rgba(201, 162, 39, 0.1); }
 .proof-doc-link {
-  color: var(--od-green-dark);
-  font-weight: 600;
+  color: var(--maroon);
+  font-weight: 700;
   text-decoration: underline;
+  text-decoration-color: var(--gold);
   text-underline-offset: 2px;
 }
-.proof-doc-link:hover { color: var(--maroon); }
+.proof-doc-link:hover {
+  color: var(--od-green-dark);
+  text-decoration-color: var(--maroon);
+}
+.proof-doc-link::after {
+  content: " ↗";
+  font-size: 0.85em;
+  font-weight: 700;
+}
 .proof-table td:has(.proof-doc-link) { max-width: 28rem; }
 .site-nav a[href="asd.html"] {
   font-size: 0.68rem;
