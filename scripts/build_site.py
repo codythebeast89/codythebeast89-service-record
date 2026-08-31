@@ -105,7 +105,7 @@ def load_config() -> dict:
 
 def load_image_map() -> dict:
     if not IMAGE_MAP_PATH.is_file():
-        return {"badges": {}, "ribbons": {}, "foreign": {}, "overlays": {}, "variants": {}}
+        return {"badges": {}, "ribbons": {}, "foreign": {}, "overlays": {}, "variants": {}, "ezr_variants": {}}
     with IMAGE_MAP_PATH.open(encoding="utf-8") as handle:
         return json.load(handle)
 
@@ -148,11 +148,26 @@ def device_variant_key(name: str, device: str, parsed: ParsedDevice) -> list[str
 
 
 def lookup_variant(maps: dict, name: str, device: str, parsed: ParsedDevice) -> str | None:
-    variants = maps.get("variants", {})
-    for key in device_variant_key(name, device, parsed):
-        if key in variants:
-            return variants[key]
+    for bucket in (maps.get("ezr_variants", {}), maps.get("variants", {})):
+        for key in device_variant_key(name, device, parsed):
+            if key in bucket:
+                return bucket[key]
     return None
+
+
+def is_ezr_url(url: str) -> bool:
+    return "i.ezr.io/" in url
+
+
+def ezr_full_url(url: str) -> str:
+    base = url.split("?")[0]
+    return f"{base}?w=800&fit=max&auto=format"
+
+
+def award_display_url(url: str, *, category: str) -> str:
+    if is_ezr_url(url):
+        return url
+    return thumb_url(url, size=120 if category == "ribbons" else 120)
 
 
 def norm_key(value: str) -> str:
@@ -165,6 +180,7 @@ IMAGE_ALIASES: dict[str, str] = {
 }
 
 AWARD_MEDIA_PX = 76
+EZR_MEDIA_PX = 96
 
 NO_OLC_OVERLAY_NAMES = frozenset({"overseas bar", "service stripe"})
 
@@ -201,7 +217,9 @@ def lookup_image(maps: dict, category: str, name: str) -> str | None:
 
 
 def full_file_url(url: str) -> str:
-    """Resolve a Wikimedia thumb URL to the full source file."""
+    """Resolve a display URL to a full-size source file."""
+    if is_ezr_url(url):
+        return ezr_full_url(url)
     marker = "/thumb/"
     if marker not in url:
         return url
@@ -227,11 +245,13 @@ def render_award_media(name: str, device: str, category: str, maps: dict) -> str
         parsed = ParsedDevice(valor=parsed.valor, award_num=parsed.award_num, bronze_olcs=0)
     variant = lookup_variant(maps, name, device, parsed)
     if variant:
-        display_url = thumb_url(variant, size=120 if category == "ribbons" else 120)
+        media_px = EZR_MEDIA_PX if is_ezr_url(variant) else AWARD_MEDIA_PX
+        media_class = "award-card__media award-card__media--ezr" if is_ezr_url(variant) else "award-card__media"
+        display_url = award_display_url(variant, category=category)
         media = (
-            f'<div class="award-card__media">'
+            f'<div class="{media_class}">'
             f'<img src="{esc(display_url)}" alt="{esc(name)}" loading="lazy" '
-            f'width="{AWARD_MEDIA_PX}" height="{AWARD_MEDIA_PX}">'
+            f'width="{media_px}" height="{media_px}">'
             f"</div>"
         )
         return wrap_media_link(media, variant, name)
