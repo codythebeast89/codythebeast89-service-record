@@ -164,6 +164,19 @@ IMAGE_ALIASES: dict[str, str] = {
     "afghanistan campagin": "afghanistan campaign",
 }
 
+AWARD_MEDIA_PX = 76
+
+
+def olc_layout(count: int) -> tuple[int, float]:
+    """Return CSS pixel size and gap for bronze OLC overlays."""
+    if count <= 1:
+        return 6, 5.0
+    if count <= 3:
+        return 5, 4.5
+    if count <= 5:
+        return 4, 3.5
+    return 3, max(2.5, 22 / count)
+
 
 def lookup_image(maps: dict, category: str, name: str) -> str | None:
     key = IMAGE_ALIASES.get(norm_key(name), norm_key(name))
@@ -188,7 +201,8 @@ def render_award_media(name: str, device: str, category: str, maps: dict) -> str
         display_url = thumb_url(variant, size=120 if category == "ribbons" else 120)
         return (
             f'<div class="award-card__media">'
-            f'<img src="{esc(display_url)}" alt="{esc(name)}" loading="lazy" width="52" height="52">'
+            f'<img src="{esc(display_url)}" alt="{esc(name)}" loading="lazy" '
+            f'width="{AWARD_MEDIA_PX}" height="{AWARD_MEDIA_PX}">'
             f"</div>"
         )
 
@@ -200,31 +214,37 @@ def render_award_media(name: str, device: str, category: str, maps: dict) -> str
         display_url = thumb_url(base)
         return (
             f'<div class="award-card__media">'
-            f'<img src="{esc(display_url)}" alt="{esc(name)}" loading="lazy" width="52" height="52">'
+            f'<img src="{esc(display_url)}" alt="{esc(name)}" loading="lazy" '
+            f'width="{AWARD_MEDIA_PX}" height="{AWARD_MEDIA_PX}">'
             f"</div>"
         )
 
     overlays = maps.get("overlays", {})
     olc_url = overlays.get("bronze_olc", "")
     valor_url = overlays.get("valor_v", "")
+    olc_size, olc_gap = olc_layout(parsed.bronze_olcs)
     device_parts: list[str] = []
     if parsed.valor and valor_url:
         device_parts.append(
-            f'<img class="award-device award-device--valor" src="{esc(thumb_url(valor_url, 32))}" alt="">'
+            f'<img class="award-device award-device--valor" src="{esc(thumb_url(valor_url, 24))}" alt="">'
         )
     if parsed.bronze_olcs and olc_url:
-        olc_display = esc(thumb_url(olc_url, 32))
+        olc_display = esc(thumb_url(olc_url, 24))
         for index in range(parsed.bronze_olcs):
             device_parts.append(
                 f'<img class="award-device award-device--olc" src="{olc_display}" alt="" '
                 f'style="--olc-index:{index}">'
             )
 
+    device_style = (
+        f'--olc-count:{parsed.bronze_olcs};--olc-size:{olc_size}px;--olc-gap:{olc_gap}px'
+    )
     return (
         f'<div class="award-card__media award-card__media--rack">'
         f'<img class="award-card__ribbon" src="{esc(thumb_url(base))}" alt="{esc(name)}" '
-        f'loading="lazy" width="52" height="52">'
-        f'<div class="award-card__devices" aria-hidden="true">{"".join(device_parts)}</div>'
+        f'loading="lazy" width="{AWARD_MEDIA_PX}" height="{AWARD_MEDIA_PX}">'
+        f'<div class="award-card__devices" aria-hidden="true" style="{device_style}">'
+        f'{"".join(device_parts)}</div>'
         f"</div>"
     )
 
