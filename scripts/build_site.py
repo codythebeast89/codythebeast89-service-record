@@ -176,12 +176,12 @@ def skip_olc_overlay(name: str) -> bool:
 def olc_layout(count: int) -> tuple[int, float]:
     """Return CSS pixel size and gap for bronze OLC overlays."""
     if count <= 1:
-        return 6, 5.0
+        return 5, 4.0
     if count <= 3:
-        return 5, 4.5
-    if count <= 5:
         return 4, 3.5
-    return 3, max(2.5, 22 / count)
+    if count <= 5:
+        return 3, 3.0
+    return 3, max(2.0, 18 / count)
 
 
 def lookup_image(maps: dict, category: str, name: str) -> str | None:
@@ -257,14 +257,15 @@ def render_award_media(name: str, device: str, category: str, maps: dict) -> str
     device_parts: list[str] = []
     if parsed.valor and valor_url:
         device_parts.append(
-            f'<img class="award-device award-device--valor" src="{esc(thumb_url(valor_url, 24))}" alt="">'
+            f'<img class="award-device award-device--valor" src="{esc(thumb_url(valor_url, 16))}" '
+            f'alt="" width="6" height="7">'
         )
     if parsed.bronze_olcs and olc_url:
-        olc_display = esc(thumb_url(olc_url, 24))
+        olc_display = esc(thumb_url(olc_url, 16))
         for index in range(parsed.bronze_olcs):
             device_parts.append(
                 f'<img class="award-device award-device--olc" src="{olc_display}" alt="" '
-                f'style="--olc-index:{index}">'
+                f'width="{olc_size}" height="{int(olc_size * 1.2)}" style="--olc-index:{index}">'
             )
 
     device_style = (
