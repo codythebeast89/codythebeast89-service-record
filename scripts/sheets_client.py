@@ -1,0 +1,124 @@
+#!/usr/bin/env python3
+"""Google Sheets read-only client using awards-tui OAuth token."""
+
+from __future__ import annotations
+
+import json
+import os
+import urllib.error
+import urllib.parse
+import urllib.request
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+DEFAULT_TOKEN_PATH = Path.home() / "Projects" / "awards-tui" / "token.json"
+
+
+def resolve_token_path() -> Path:
+    env_path = os.environ.get("AWARDS_TOKEN_PATH")
+    if env_path:
+        return Path(env_path).expanduser()
+    return DEFAULT_TOKEN_PATH
+
+
+def load_token(path: Path | None = None) -> dict:
+    token_path = path or resolve_token_path()
+    if not token_path.is_file():
+        raise FileNotFoundError(
+            f"OAuth token not found at {token_path}. "
+            "Run awards-tui login locally or set AWARDS_TOKEN_PATH."
+        )
+    with token_path.open(encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def refresh_token(tok: dict, *, persist_path: Path | None = None) -> dict:
+    expiry = tok.get("expiry")
+    if expiry:
+        exp = datetime.fromisoformat(expiry.replace("Z", "+00:00"))
+        if datetime.now(timezone.utc) < exp - timedelta(seconds=120):
+            return tok
+
+    data = urllib.parse.urlencode(
+        {
+            "grant_type": "refresh_token",
+            "refresh_token": tok["refresh_token"],
+            "client_id": tok["client_id"],
+            "client_secret": tok["client_secret"],
+        }
+    ).encode()
+    req = urllib.request.Request(tok["token_uri"], data=data, method="POST")
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        new = json.load(resp)
+
+    now = datetime.now(timezone.utc)
+    tok["token"] = new["access_token"]
+    tok["expiry"] = (now + timedelta(seconds=new.get("expires_in", 3600))).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    )
+
+    write_path = persist_path or resolve_token_path()
+    if write_path.is_file():
+        with write_path.open("w", encoding="utf-8") as handle:
+            json.dump(tok, handle, indent=2)
+
+    return tok
+
+
+def api(
+    tok: dict,
+    spreadsheet_id: str,
+    path: str,
+    *,
+    method: str = "GET",
+    body: dict | None = None,
+    persist_path: Path | None = None,
+) -> dict:
+    tok = refresh_token(tok, persist_path=persist_path)
+    url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}{path}"
+    payload = json.dumps(body).encode() if body is not None else None
+    req = urllib.request.Request(
+        url,
+        data=payload,
+        method=method,
+        headers={
+            "Authorization": f"Bearer {tok['token']}",
+            "Content-Type": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            return json.load(resp)
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Sheets API {exc.code}: {detail}") from exc
+
+
+def get_values(
+    tok: dict,
+    spreadsheet_id: str,
+    sheet: str,
+    a1_range: str,
+    *,
+    value_render: str = "FORMATTED_VALUE",
+    persist_path: Path | None = None,
+) -> list[list[str]]:
+    encoded = urllib.parse.quote(f"'{sheet}'!{a1_range}", safe="")
+    path = f"/values/{encoded}?valueRenderOption={value_render}"
+    result = api(tok, spreadsheet_id, path, persist_path=persist_path)
+    return result.get("values") or []
+
+
+def list_sheet_titles(
+    tok: dict,
+    spreadsheet_id: str,
+    *,
+    persist_path: Path | None = None,
+) -> list[str]:
+    meta = api(
+        tok,
+        spreadsheet_id,
+        "?fields=sheets(properties(title))",
+        persist_path=persist_path,
+    )
+    return [sheet["properties"]["title"] for sheet in meta.get("sheets", [])]

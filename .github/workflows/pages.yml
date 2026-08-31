@@ -1,0 +1,60 @@
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prepare OAuth token
+        env:
+          AWARDS_TOKEN_JSON: ${{ secrets.AWARDS_TOKEN_JSON }}
+          AWARDS_TOKEN_PATH: ${{ runner.temp }}/token.json
+        run: |
+          if [ -n "$AWARDS_TOKEN_JSON" ]; then
+            echo "$AWARDS_TOKEN_JSON" | base64 -d > "$AWARDS_TOKEN_PATH"
+          elif [ -n "${{ secrets.AWARDS_TOKEN_PATH }}" ]; then
+            cp "${{ secrets.AWARDS_TOKEN_PATH }}" "$AWARDS_TOKEN_PATH"
+          else
+            echo "Set repository secret AWARDS_TOKEN_JSON (base64-encoded token.json)" >&2
+            exit 1
+          fi
+          echo "AWARDS_TOKEN_PATH=$AWARDS_TOKEN_PATH" >> "$GITHUB_ENV"
+
+      - name: Build site
+        run: python3 scripts/build_site.py
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
