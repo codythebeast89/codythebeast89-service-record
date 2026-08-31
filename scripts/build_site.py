@@ -159,26 +159,61 @@ def fetch_table(tok: dict, sheet_id: str, sheet: str, token_path: Path) -> tuple
 
 
 def fetch_events(tok: dict, sheet_id: str, token_path: Path) -> list[dict]:
-    rows = get_values(tok, sheet_id, "Events Log", "A1:G200", persist_path=token_path)
+    """Parse Events Log tab with side-by-side sections (AFA / Expeditions / Courses)."""
+    rows = get_values(tok, sheet_id, "Events Log", "A1:Z200", persist_path=token_path)
+    if not rows:
+        return []
+
+    title_idx: int | None = None
+    for idx in range(len(rows) - 1):
+        header_row = rows[idx + 1]
+        if not any(cell(header_row, col) == "Date" for col in range(2, len(header_row))):
+            continue
+        title_row = rows[idx]
+        titles = [
+            (col, cell(title_row, col))
+            for col in range(2, len(title_row))
+            if cell(title_row, col) and cell(title_row, col) != "Events"
+        ]
+        if titles:
+            title_idx = idx
+            break
+
+    if title_idx is None:
+        return []
+
+    title_row = rows[title_idx]
+    header_row = rows[title_idx + 1]
+    starts = [
+        (col, cell(title_row, col))
+        for col in range(2, len(title_row))
+        if cell(title_row, col) and cell(title_row, col) != "Events"
+    ]
+
     blocks: list[dict] = []
-    current: dict | None = None
-    for row in rows:
-        c_text = cell(row, 2)
-        d_text = cell(row, 3)
-        if c_text and not d_text and c_text not in ("Date", "Events"):
-            if current:
-                blocks.append(current)
-            current = {"title": c_text, "headers": [], "rows": []}
+    for block_index, (start_col, title) in enumerate(starts):
+        end_col = starts[block_index + 1][0] if block_index + 1 < len(starts) else max(len(header_row), 26)
+        header_cols = [
+            (cell(header_row, col), col)
+            for col in range(start_col, end_col)
+            if cell(header_row, col)
+        ]
+        if not header_cols:
             continue
-        if current and c_text == "Date" and d_text:
-            current["headers"] = [c_text, d_text] + [cell(row, i) for i in range(4, 7) if cell(row, i)]
-            continue
-        if current and current.get("headers") and (c_text or d_text):
-            event_row = [c_text, d_text] + [cell(row, i) for i in range(4, 7)]
-            if any(event_row):
-                current["rows"].append(event_row)
-    if current:
-        blocks.append(current)
+
+        data_rows: list[list[str]] = []
+        for row in rows[title_idx + 2 :]:
+            values = [cell(row, col) for _, col in header_cols]
+            if any(values):
+                data_rows.append(values)
+
+        blocks.append(
+            {
+                "title": title,
+                "headers": [header for header, _ in header_cols],
+                "rows": data_rows,
+            }
+        )
     return blocks
 
 
@@ -253,13 +288,17 @@ def render_events(blocks: list[dict]) -> str:
         return '<p class="meta-note">No events logged yet.</p>'
     chunks: list[str] = []
     for block in blocks:
+        rows = block.get("rows", [])
         chunks.append(f'<div class="events-block"><h3>{esc(block["title"])}</h3>')
+        if not rows:
+            chunks.append('<p class="meta-note">No entries yet.</p></div>')
+            continue
         headers = block.get("headers") or ["Date", "Event"]
         chunks.append('<div class="table-wrap"><table><thead><tr>')
         for h in headers:
             chunks.append(f"<th>{esc(h)}</th>")
         chunks.append("</tr></thead><tbody>")
-        for row in block.get("rows", []):
+        for row in rows:
             chunks.append("<tr>")
             for idx in range(len(headers)):
                 chunks.append(f"<td>{esc(cell(row, idx))}</td>")
