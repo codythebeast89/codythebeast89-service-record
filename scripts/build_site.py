@@ -589,6 +589,7 @@ def render_page_shell(
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&amp;family=Source+Sans+3:wght@400;600;700&amp;display=swap">
+  <link rel="preload" href="assets/transition.webp" as="image" type="image/webp">
   <link rel="stylesheet" href="style.css">
   <script src="nav.js" defer></script>
 </head>
@@ -608,7 +609,10 @@ def render_page_shell(
     · Built by <a href="{esc(awards_repo)}" rel="noopener">awards-tui</a></p>
   </footer>
   <div id="page-transition" class="page-transition" hidden aria-hidden="true">
-    <img src="assets/transition.gif" alt="" width="256" height="256" decoding="async">
+    <picture>
+      <source srcset="assets/transition.webp" type="image/webp">
+      <img src="assets/transition.gif" alt="" width="256" height="256" decoding="async" fetchpriority="high">
+    </picture>
   </div>
 </body>
 </html>
@@ -642,9 +646,16 @@ def write_nav_js(pages: list[SitePage]) -> None:
     return document.getElementById("page-transition");
   }}
 
+  function restartTransitionMedia(overlay) {{
+    const media = overlay.querySelector("picture") || overlay.querySelector("img");
+    if (!media) return;
+    media.replaceWith(media.cloneNode(true));
+  }}
+
   function showTransitionOverlay() {{
     const overlay = transitionOverlay();
     if (!overlay) return;
+    restartTransitionMedia(overlay);
     overlay.hidden = false;
     overlay.setAttribute("aria-hidden", "false");
     overlay.classList.add("is-active");

@@ -157,7 +157,9 @@ main.page-content {
   opacity: 1;
   visibility: visible;
 }
+.page-transition picture,
 .page-transition img {
+  display: block;
   width: min(256px, 52vw);
   height: auto;
   filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.45));

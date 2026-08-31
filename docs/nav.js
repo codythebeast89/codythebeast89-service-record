@@ -13,9 +13,16 @@
     return document.getElementById("page-transition");
   }
 
+  function restartTransitionMedia(overlay) {
+    const media = overlay.querySelector("picture") || overlay.querySelector("img");
+    if (!media) return;
+    media.replaceWith(media.cloneNode(true));
+  }
+
   function showTransitionOverlay() {
     const overlay = transitionOverlay();
     if (!overlay) return;
+    restartTransitionMedia(overlay);
     overlay.hidden = false;
     overlay.setAttribute("aria-hidden", "false");
     overlay.classList.add("is-active");
