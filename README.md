@@ -15,7 +15,7 @@ Each tracker section is its own page with animated transitions when navigating v
 | Decorations | `decorations.html` |
 | Overseas Bar proof | `osb.html` |
 | JSA proof | `jsa.html` |
-| Army Sea Duty / Campaign | `asd.html` |
+| Army Sea Duty (ASD) | `asd.html` |
 | Southwest Asia Service | `swa.html` |
 | Kosovo Campaign | `kosovo.html` |
 | Afghanistan Campaign | `afghanistan.html` |

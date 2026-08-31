@@ -501,6 +501,14 @@ tbody tr:hover { background: rgba(201, 162, 39, 0.1); }
 }
 .proof-doc-link:hover { color: var(--maroon); }
 .proof-table td:has(.proof-doc-link) { max-width: 28rem; }
+.site-nav a[href="asd.html"] {
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  max-width: 7.5rem;
+  line-height: 1.25;
+  text-align: center;
+  white-space: normal;
+}
 .status-logged { color: #2e5a1c; font-weight: 700; }
 .status-pending { color: var(--gold); font-weight: 700; }
 .events-block { margin-bottom: 1rem; }
