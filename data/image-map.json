@@ -10,7 +10,16 @@
   },
   "ezr_variants": {
     "antarctica service|x2": "https://i.ezr.io/racks/90c22c40282d9d7cbbf703f0c99edb621c67b51b.png?w=-48&fit=fillmax&fm=pjpg&auto=format",
-    "antartica service|x2": "https://i.ezr.io/racks/90c22c40282d9d7cbbf703f0c99edb621c67b51b.png?w=-48&fit=fillmax&fm=pjpg&auto=format"
+    "antartica service|x2": "https://i.ezr.io/racks/90c22c40282d9d7cbbf703f0c99edb621c67b51b.png?w=-48&fit=fillmax&fm=pjpg&auto=format",
+    "army commendation|\"c\" x2": "https://i.ezr.io/racks/1c275be647bb674052a5574d0e7cf2b495d3fd35.png?w=-48&fit=fillmax&fm=pjpg&auto=format",
+    "army commendation|x2": "https://i.ezr.io/racks/1c275be647bb674052a5574d0e7cf2b495d3fd35.png?w=-48&fit=fillmax&fm=pjpg&auto=format",
+    "joint service achievement|x3": "https://i.ezr.io/racks/9829409f007add8598af85ce307abfb06f039d8f.png?w=-48&fit=fillmax&fm=pjpg&auto=format",
+    "kosovo campaign|x3": "https://i.ezr.io/racks/633ceab2e0eddea5cabf39f7d227de7e17d849f0.png?w=-48&fit=fillmax&fm=pjpg&auto=format",
+    "afghanistan campagin|x3": "https://i.ezr.io/racks/b06799d301ef573e5cf9cf270065284e2a5d78d5.png?w=-48&fit=fillmax&fm=pjpg&auto=format",
+    "afghanistan campaign|x3": "https://i.ezr.io/racks/b06799d301ef573e5cf9cf270065284e2a5d78d5.png?w=-48&fit=fillmax&fm=pjpg&auto=format",
+    "army sea duty|x3": "https://i.ezr.io/racks/17f212d9bd54564a6bea20e73a201fe56b8b29b7.png?w=-48&fit=fillmax&fm=pjpg&auto=format",
+    "nato non-article 5|x2": "https://i.ezr.io/racks/236deb0ae741d27da1ce7c2e53d29f8cca0a2e39.png?w=-48&fit=fillmax&fm=pjpg&auto=format",
+    "nato article 5|x2": "https://i.ezr.io/racks/7ef99610e13c5b889b0bbfeba202a1a7962c5d5f.png?w=-48&fit=fillmax&fm=pjpg&auto=format"
   },
   "badges": {
     "combat infantryman badge": "https://upload.wikimedia.org/wikipedia/commons/8/82/Combat_Infantry_Badge.svg",
