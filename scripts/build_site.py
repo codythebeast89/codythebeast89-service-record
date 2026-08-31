@@ -166,6 +166,12 @@ IMAGE_ALIASES: dict[str, str] = {
 
 AWARD_MEDIA_PX = 76
 
+NO_OLC_OVERLAY_NAMES = frozenset({"overseas bar", "service stripe"})
+
+
+def skip_olc_overlay(name: str) -> bool:
+    return norm_key(name) in NO_OLC_OVERLAY_NAMES
+
 
 def olc_layout(count: int) -> tuple[int, float]:
     """Return CSS pixel size and gap for bronze OLC overlays."""
@@ -194,17 +200,41 @@ def lookup_image(maps: dict, category: str, name: str) -> str | None:
     return None
 
 
+def full_file_url(url: str) -> str:
+    """Resolve a Wikimedia thumb URL to the full source file."""
+    marker = "/thumb/"
+    if marker not in url:
+        return url
+    base, rest = url.split(marker, 1)
+    path_part, _size_part = rest.rsplit("/", 1)
+    return f"{base}/{path_part}"
+
+
+def wrap_media_link(inner_html: str, source_url: str, label: str) -> str:
+    if not source_url:
+        return inner_html
+    full_url = full_file_url(source_url)
+    return (
+        f'<a class="award-card__media-link" href="{esc(full_url)}" target="_blank" '
+        f'rel="noopener noreferrer" title="View full image: {esc(label)}">'
+        f"{inner_html}</a>"
+    )
+
+
 def render_award_media(name: str, device: str, category: str, maps: dict) -> str:
     parsed = parse_device(device)
+    if skip_olc_overlay(name):
+        parsed = ParsedDevice(valor=parsed.valor, award_num=parsed.award_num, bronze_olcs=0)
     variant = lookup_variant(maps, name, device, parsed)
     if variant:
         display_url = thumb_url(variant, size=120 if category == "ribbons" else 120)
-        return (
+        media = (
             f'<div class="award-card__media">'
             f'<img src="{esc(display_url)}" alt="{esc(name)}" loading="lazy" '
             f'width="{AWARD_MEDIA_PX}" height="{AWARD_MEDIA_PX}">'
             f"</div>"
         )
+        return wrap_media_link(media, variant, name)
 
     base = lookup_image(maps, category, name)
     if not base:
@@ -212,12 +242,13 @@ def render_award_media(name: str, device: str, category: str, maps: dict) -> str
 
     if parsed.bronze_olcs == 0 and not parsed.valor:
         display_url = thumb_url(base)
-        return (
+        media = (
             f'<div class="award-card__media">'
             f'<img src="{esc(display_url)}" alt="{esc(name)}" loading="lazy" '
             f'width="{AWARD_MEDIA_PX}" height="{AWARD_MEDIA_PX}">'
             f"</div>"
         )
+        return wrap_media_link(media, base, name)
 
     overlays = maps.get("overlays", {})
     olc_url = overlays.get("bronze_olc", "")
@@ -239,7 +270,7 @@ def render_award_media(name: str, device: str, category: str, maps: dict) -> str
     device_style = (
         f'--olc-count:{parsed.bronze_olcs};--olc-size:{olc_size}px;--olc-gap:{olc_gap}px'
     )
-    return (
+    media = (
         f'<div class="award-card__media award-card__media--rack">'
         f'<img class="award-card__ribbon" src="{esc(thumb_url(base))}" alt="{esc(name)}" '
         f'loading="lazy" width="{AWARD_MEDIA_PX}" height="{AWARD_MEDIA_PX}">'
@@ -247,6 +278,7 @@ def render_award_media(name: str, device: str, category: str, maps: dict) -> str
         f'{"".join(device_parts)}</div>'
         f"</div>"
     )
+    return wrap_media_link(media, base, name)
 
 
 def thumb_url(url: str, size: int = 120) -> str:
