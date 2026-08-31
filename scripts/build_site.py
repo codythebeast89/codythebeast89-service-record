@@ -137,12 +137,31 @@ def lookup_image(maps: dict, category: str, name: str) -> str | None:
 
 def render_award_media(url: str | None, label: str) -> str:
     if url:
+        display_url = thumb_url(url)
         return (
             f'<div class="award-card__media">'
-            f'<img src="{esc(url)}" alt="{esc(label)}" loading="lazy">'
+            f'<img src="{esc(display_url)}" alt="{esc(label)}" loading="lazy" width="52" height="52">'
             f"</div>"
         )
     return '<div class="award-card__media award-card__media--empty" aria-hidden="true"></div>'
+
+
+def thumb_url(url: str, size: int = 120) -> str:
+    """Prefer a bounded Wikimedia thumb URL for predictable layout and faster loads."""
+    marker = "/thumb/"
+    if marker not in url:
+        return url
+    suffix = f"/{size}px-"
+    if suffix in url:
+        return url.replace("/1920px-", f"/{size}px-", 1).replace("/1280px-", f"/{size}px-", 1).replace("/320px-", f"/{size}px-", 1)
+    parts = url.split(marker, 1)
+    if len(parts) != 2:
+        return url
+    path_and_name = parts[1]
+    if "/" not in path_and_name:
+        return url
+    directory, filename = path_and_name.rsplit("/", 1)
+    return f"{parts[0]}{marker}{directory}/{size}px-{filename}"
 
 
 def esc(value: str) -> str:
@@ -360,7 +379,7 @@ def render_profile(profile: dict[str, str], photo_url: str) -> str:
     return (
         f'<div class="profile-layout">'
         f'<div class="profile-photo"><img src="{esc(photo_url)}" alt="Service photo"></div>'
-        f'<dl class="profile-fields">{"".join(fields)}</dl>'
+        f'<div class="profile-fields">{"".join(fields)}</div>'
         f"</div>"
         f'<p class="meta-note">Generated from tracker data. Title: {esc(title)}</p>'
     )
