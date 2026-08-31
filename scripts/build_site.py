@@ -586,6 +586,9 @@ def render_page_shell(
   <meta name="view-transition" content="same-origin">
   <title>{esc(full_title)}</title>
   <meta name="description" content="Public service record for {esc(username)} — {esc(page_title)}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&amp;family=Source+Sans+3:wght@400;600;700&amp;display=swap">
   <link rel="stylesheet" href="style.css">
   <script src="nav.js" defer></script>
 </head>
@@ -604,6 +607,9 @@ def render_page_shell(
     <p>Source tracker: <a href="{esc(tracker_url)}" rel="noopener">Google Sheets</a>
     · Built by <a href="{esc(awards_repo)}" rel="noopener">awards-tui</a></p>
   </footer>
+  <div id="page-transition" class="page-transition" hidden aria-hidden="true">
+    <img src="assets/transition.gif" alt="" width="256" height="256" decoding="async">
+  </div>
 </body>
 </html>
 """
@@ -623,6 +629,8 @@ def write_nav_js(pages: list[SitePage]) -> None:
     files = json.dumps([page.file for page in pages])
     script = f"""(() => {{
   const PAGES = {files};
+  const TRANSITION_MS = 780;
+  const TRANSITION_KEY = "page-transition-active";
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   function currentFile() {{
@@ -630,8 +638,40 @@ def write_nav_js(pages: list[SitePage]) -> None:
     return path.substring(path.lastIndexOf("/") + 1) || "index.html";
   }}
 
+  function transitionOverlay() {{
+    return document.getElementById("page-transition");
+  }}
+
+  function showTransitionOverlay() {{
+    const overlay = transitionOverlay();
+    if (!overlay) return;
+    overlay.hidden = false;
+    overlay.setAttribute("aria-hidden", "false");
+    overlay.classList.add("is-active");
+  }}
+
+  function hideTransitionOverlay(delay = 0) {{
+    const overlay = transitionOverlay();
+    if (!overlay) return;
+    window.setTimeout(() => {{
+      overlay.classList.remove("is-active");
+      window.setTimeout(() => {{
+        overlay.hidden = true;
+        overlay.setAttribute("aria-hidden", "true");
+      }}, 240);
+    }}, delay);
+  }}
+
   function initEnter() {{
     const main = document.querySelector(".page-content");
+    const pending = sessionStorage.getItem(TRANSITION_KEY);
+    sessionStorage.removeItem(TRANSITION_KEY);
+
+    if (pending && !reduceMotion) {{
+      showTransitionOverlay();
+      hideTransitionOverlay(520);
+    }}
+
     if (!main || reduceMotion) return;
     const dir = sessionStorage.getItem("page-transition-dir");
     sessionStorage.removeItem("page-transition-dir");
@@ -640,37 +680,48 @@ def write_nav_js(pages: list[SitePage]) -> None:
     else main.classList.add("page-enter");
   }}
 
-  function bindNav() {{
-    document.querySelectorAll(".site-nav a.site-nav__link").forEach((link) => {{
-      link.addEventListener("click", (event) => {{
-        const href = link.getAttribute("href");
-        if (!href || href.includes("://") || href.startsWith("#")) return;
+  function navigateWithTransition(href, toIdx, fromIdx) {{
+    sessionStorage.setItem(
+      "page-transition-dir",
+      toIdx > fromIdx ? "forward" : "back"
+    );
+    sessionStorage.setItem(TRANSITION_KEY, "1");
 
-        const from = currentFile();
-        const fromIdx = PAGES.indexOf(from);
-        const toIdx = PAGES.indexOf(href);
-        if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) {{
-          return;
-        }}
+    if (reduceMotion) {{
+      window.location.href = href;
+      return;
+    }}
 
-        sessionStorage.setItem(
-          "page-transition-dir",
-          toIdx > fromIdx ? "forward" : "back"
-        );
+    showTransitionOverlay();
+    const main = document.querySelector(".page-content");
+    if (main) {{
+      const exitClass = toIdx > fromIdx ? "page-exit-forward" : "page-exit-back";
+      main.classList.add(exitClass);
+    }}
+    window.setTimeout(() => {{
+      window.location.href = href;
+    }}, TRANSITION_MS);
+  }}
 
-        if (reduceMotion) return;
+  function bindTransitionLink(link) {{
+    link.addEventListener("click", (event) => {{
+      const href = link.getAttribute("href");
+      if (!href || href.includes("://") || href.startsWith("#")) return;
 
-        const main = document.querySelector(".page-content");
-        if (!main) return;
+      const from = currentFile();
+      const fromIdx = PAGES.indexOf(from);
+      const toIdx = PAGES.indexOf(href);
+      if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return;
 
-        event.preventDefault();
-        const exitClass = toIdx > fromIdx ? "page-exit-forward" : "page-exit-back";
-        main.classList.add(exitClass);
-        window.setTimeout(() => {{
-          window.location.href = href;
-        }}, 280);
-      }});
+      event.preventDefault();
+      navigateWithTransition(href, toIdx, fromIdx);
     }});
+  }}
+
+  function bindNav() {{
+    document.querySelectorAll(".site-nav a.site-nav__link").forEach(bindTransitionLink);
+    const home = document.querySelector(".site-header__home");
+    if (home) bindTransitionLink(home);
   }}
 
   if (document.readyState === "loading") {{
