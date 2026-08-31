@@ -156,6 +156,8 @@ def thumb_url(url: str, size: int = 120) -> str:
     if "px-" not in size_part:
         return url
     filename = size_part.split("px-", 1)[1]
+    while "px-" in filename:
+        filename = filename.split("px-", 1)[1]
     return f"{base}{marker}{path_part}/{size}px-{filename}"
 
 
